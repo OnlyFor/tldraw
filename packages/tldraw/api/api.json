@@ -16893,7 +16893,16 @@
             },
             {
               "kind": "Content",
-              "text": ";\n} | {\n    store?: undefined;\n    persistenceKey?: string;\n    sessionId?: string;\n    defaultName?: string;\n    snapshot?: "
+              "text": ";\n} | {\n    store?: undefined;\n    migrations?: readonly "
+            },
+            {
+              "kind": "Reference",
+              "text": "MigrationSequence",
+              "canonicalReference": "@tldraw/store!MigrationSequence:interface"
+            },
+            {
+              "kind": "Content",
+              "text": "[];\n    persistenceKey?: string;\n    sessionId?: string;\n    defaultName?: string;\n    snapshot?: "
             },
             {
               "kind": "Reference",
@@ -16923,7 +16932,7 @@
           "name": "TldrawProps",
           "typeTokenRange": {
             "startIndex": 1,
-            "endIndex": 25
+            "endIndex": 27
           }
         },
         {

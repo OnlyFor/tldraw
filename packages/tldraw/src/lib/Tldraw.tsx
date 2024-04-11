@@ -3,6 +3,7 @@ import {
 	ErrorScreen,
 	Expand,
 	LoadingScreen,
+	MigrationSequence,
 	StoreSnapshot,
 	TLEditorComponents,
 	TLOnMountHandler,
@@ -56,6 +57,7 @@ export type TldrawProps = Expand<
 			  }
 			| {
 					store?: undefined
+					migrations?: readonly MigrationSequence[]
 					persistenceKey?: string
 					sessionId?: string
 					defaultName?: string
