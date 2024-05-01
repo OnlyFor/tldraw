@@ -41,10 +41,10 @@ import {
 import { interval } from './interval'
 import {
 	TLIncompatibilityReason,
-	TLSYNC_PROTOCOL_VERSION,
 	TLSocketClientSentEvent,
 	TLSocketServerSentDataEvent,
 	TLSocketServerSentEvent,
+	getTlsyncProtocolVersion,
 } from './protocol'
 
 /** @public */
@@ -452,7 +452,7 @@ export class TLSyncRoom<R extends UnknownRecord> {
 		}
 	}
 
-	private removeSession(sessionKey: string) {
+	private removeSession(sessionKey: string, closeSocket = true) {
 		const session = this.sessions.get(sessionKey)
 		if (!session) {
 			console.warn('Tried to remove unknown session')
@@ -464,7 +464,7 @@ export class TLSyncRoom<R extends UnknownRecord> {
 		const presence = this.getDocument(session.presenceId)
 
 		try {
-			if (session.socket.isOpen) {
+			if (closeSocket && session.socket.isOpen) {
 				session.socket.close()
 			}
 		} catch (_e) {
@@ -658,20 +658,23 @@ export class TLSyncRoom<R extends UnknownRecord> {
 		connectRequestId: string
 	}) {
 		if (!canHandleRejection) {
-			this.sessions.delete(session.sessionKey)
-			session.socket.sendMessage({
-				type: 'connect',
-				connectRequestId,
-				diff: {
-					// send them a bad record to put them into a state where they don't try to reconnect
-					// and it shows 'offline'
-					'shape:shape': [RecordOpType.Put, { id: 'shape:shape', typeName: 'shape' } as any],
-				},
-				hydrationType: 'wipe_all',
-				protocolVersion: TLSYNC_PROTOCOL_VERSION,
-				schema: this.serializedSchema,
-				serverClock: this.clock,
-			})
+			try {
+				session.socket.sendMessage({
+					type: 'connect',
+					connectRequestId,
+					diff: {
+						// send them a bad record to put them into a state where they don't try to reconnect
+						// and it shows 'offline'
+						'shape:shape': [RecordOpType.Put, { id: 'shape:shape', typeName: 'shape' } as any],
+					},
+					hydrationType: 'wipe_all',
+					protocolVersion: getTlsyncProtocolVersion(),
+					schema: this.serializedSchema,
+					serverClock: this.clock,
+				})
+			} finally {
+				this.removeSession(session.sessionKey, false)
+			}
 		} else {
 			this.rejectSession(session, reason)
 		}
@@ -698,10 +701,8 @@ export class TLSyncRoom<R extends UnknownRecord> {
 		message: Extract<TLSocketClientSentEvent<R>, { type: 'connect' }>
 	) {
 		// 5 and 6 are the same protocol version so we can allow 5 to connect if we are on 6.
-		// If/when we update TLSYNC_PROTOCOL_VERSION to 7, we can remove the special case for 5
-		const isProtocolVersionUpToDate =
-			message.protocolVersion === TLSYNC_PROTOCOL_VERSION ||
-			(TLSYNC_PROTOCOL_VERSION === 6 && message.protocolVersion === 5)
+		// If/when we update getTlsyncProtocolVersion() to 7, we can remove this special case.
+		const isBackwardsCompatible = getTlsyncProtocolVersion() === 6 && message.protocolVersion === 5
 
 		const reject = (reason: TLIncompatibilityReason) => {
 			this.rejectConnectAttempt({
@@ -712,11 +713,12 @@ export class TLSyncRoom<R extends UnknownRecord> {
 			})
 		}
 
-		reject(TLIncompatibilityReason.ClientTooOld)
-
-		if (message.protocolVersion == null || !isProtocolVersionUpToDate) {
+		if (
+			message.protocolVersion == null ||
+			(message.protocolVersion < getTlsyncProtocolVersion() && !isBackwardsCompatible)
+		) {
 			return reject(TLIncompatibilityReason.ClientTooOld)
-		} else if (message.protocolVersion > TLSYNC_PROTOCOL_VERSION) {
+		} else if (message.protocolVersion > getTlsyncProtocolVersion()) {
 			return reject(TLIncompatibilityReason.ServerTooOld)
 		}
 		// If the client's store is at a different version to ours, it could cause corruption.
@@ -776,7 +778,7 @@ export class TLSyncRoom<R extends UnknownRecord> {
 					type: 'connect',
 					connectRequestId: message.connectRequestId,
 					hydrationType: 'wipe_all',
-					protocolVersion: TLSYNC_PROTOCOL_VERSION,
+					protocolVersion: getTlsyncProtocolVersion(),
 					schema: this.schema.serialize(),
 					serverClock: this.clock,
 					diff: migrated.value,
@@ -820,7 +822,7 @@ export class TLSyncRoom<R extends UnknownRecord> {
 					connectRequestId: message.connectRequestId,
 					hydrationType: 'wipe_presence',
 					schema: this.schema.serialize(),
-					protocolVersion: TLSYNC_PROTOCOL_VERSION,
+					protocolVersion: getTlsyncProtocolVersion(),
 					serverClock: this.clock,
 					diff: migrated.value,
 				})
