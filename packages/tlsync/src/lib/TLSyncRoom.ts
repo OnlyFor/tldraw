@@ -420,9 +420,7 @@ export class TLSyncRoom<R extends UnknownRecord> {
 			} else {
 				if (session.debounceTimer === null) {
 					// this is the first message since the last flush, don't delay it
-					session.socket.sendMessage(
-						session.isV4Client ? message : { type: 'data', data: [message] }
-					)
+					session.socket.sendMessage({ type: 'data', data: [message] })
 
 					session.debounceTimer = setTimeout(
 						() => this._flushDataMessages(sessionKey),
@@ -449,14 +447,7 @@ export class TLSyncRoom<R extends UnknownRecord> {
 		session.debounceTimer = null
 
 		if (session.outstandingDataMessages.length > 0) {
-			if (session.isV4Client) {
-				// v4 clients don't support the "data" message, so we need to send each message separately
-				for (const message of session.outstandingDataMessages) {
-					session.socket.sendMessage(message)
-				}
-			} else {
-				session.socket.sendMessage({ type: 'data', data: session.outstandingDataMessages })
-			}
+			session.socket.sendMessage({ type: 'data', data: session.outstandingDataMessages })
 			session.outstandingDataMessages.length = 0
 		}
 	}
@@ -655,6 +646,37 @@ export class TLSyncRoom<R extends UnknownRecord> {
 		}
 	}
 
+	private rejectConnectAttempt({
+		session,
+		reason,
+		canHandleRejection,
+		connectRequestId,
+	}: {
+		session: RoomSession<R>
+		reason: TLIncompatibilityReason
+		canHandleRejection: boolean
+		connectRequestId: string
+	}) {
+		if (!canHandleRejection) {
+			this.sessions.delete(session.sessionKey)
+			session.socket.sendMessage({
+				type: 'connect',
+				connectRequestId,
+				diff: {
+					// send them a bad record to put them into a state where they don't try to reconnect
+					// and it shows 'offline'
+					'shape:shape': [RecordOpType.Put, { id: 'shape:shape', typeName: 'shape' } as any],
+				},
+				hydrationType: 'wipe_all',
+				protocolVersion: TLSYNC_PROTOCOL_VERSION,
+				schema: this.serializedSchema,
+				serverClock: this.clock,
+			})
+		} else {
+			this.rejectSession(session, reason)
+		}
+	}
+
 	/** If the client is out of date, or we are out of date, we need to let them know */
 	private rejectSession(session: RoomSession<R>, reason: TLIncompatibilityReason) {
 		try {
@@ -675,31 +697,37 @@ export class TLSyncRoom<R extends UnknownRecord> {
 		session: RoomSession<R>,
 		message: Extract<TLSocketClientSentEvent<R>, { type: 'connect' }>
 	) {
-		// if the protocol versions don't match, disconnect the client
-		// we will eventually want to try to make our protocol backwards compatible to some degree
-		// and have a MIN_PROTOCOL_VERSION constant that the TLSyncRoom implements support for
-		const isV4Client = message.protocolVersion === 4 && TLSYNC_PROTOCOL_VERSION === 5
-		if (
-			message.protocolVersion == null ||
-			(message.protocolVersion < TLSYNC_PROTOCOL_VERSION && !isV4Client)
-		) {
-			this.rejectSession(session, TLIncompatibilityReason.ClientTooOld)
-			return
+		// 5 and 6 are the same protocol version so we can allow 5 to connect if we are on 6.
+		// If/when we update TLSYNC_PROTOCOL_VERSION to 7, we can remove the special case for 5
+		const isProtocolVersionUpToDate =
+			message.protocolVersion === TLSYNC_PROTOCOL_VERSION ||
+			(TLSYNC_PROTOCOL_VERSION === 6 && message.protocolVersion === 5)
+
+		const reject = (reason: TLIncompatibilityReason) => {
+			this.rejectConnectAttempt({
+				session,
+				reason,
+				canHandleRejection: message.protocolVersion >= 6,
+				connectRequestId: message.connectRequestId,
+			})
+		}
+
+		reject(TLIncompatibilityReason.ClientTooOld)
+
+		if (message.protocolVersion == null || !isProtocolVersionUpToDate) {
+			return reject(TLIncompatibilityReason.ClientTooOld)
 		} else if (message.protocolVersion > TLSYNC_PROTOCOL_VERSION) {
-			this.rejectSession(session, TLIncompatibilityReason.ServerTooOld)
-			return
+			return reject(TLIncompatibilityReason.ServerTooOld)
 		}
 		// If the client's store is at a different version to ours, it could cause corruption.
 		// We should disconnect the client and ask them to refresh.
 		if (message.schema == null) {
-			this.rejectSession(session, TLIncompatibilityReason.ClientTooOld)
-			return
+			return reject(TLIncompatibilityReason.ClientTooOld)
 		}
 		const migrations = this.schema.getMigrationsSince(message.schema)
 		// if the client's store is at a different version to ours, we can't support them
 		if (!migrations.ok || migrations.value.some((m) => m.scope === 'store' || !m.down)) {
-			this.rejectSession(session, TLIncompatibilityReason.ClientTooOld)
-			return
+			return reject(TLIncompatibilityReason.ClientTooOld)
 		}
 
 		const sessionSchema = isEqual(message.schema, this.serializedSchema)
@@ -711,7 +739,6 @@ export class TLSyncRoom<R extends UnknownRecord> {
 				state: RoomSessionState.Connected,
 				sessionKey: session.sessionKey,
 				presenceId: session.presenceId,
-				isV4Client,
 				socket: session.socket,
 				serializedSchema: sessionSchema,
 				lastInteractionTime: Date.now(),
@@ -739,13 +766,11 @@ export class TLSyncRoom<R extends UnknownRecord> {
 				const migrated = this.migrateDiffForSession(sessionSchema, diff)
 				if (!migrated.ok) {
 					rollback()
-					this.rejectSession(
-						session,
+					return reject(
 						migrated.error === MigrationFailureReason.TargetVersionTooNew
 							? TLIncompatibilityReason.ServerTooOld
 							: TLIncompatibilityReason.ClientTooOld
 					)
-					return
 				}
 				connect({
 					type: 'connect',
@@ -783,13 +808,11 @@ export class TLSyncRoom<R extends UnknownRecord> {
 				const migrated = this.migrateDiffForSession(sessionSchema, diff)
 				if (!migrated.ok) {
 					rollback()
-					this.rejectSession(
-						session,
+					return reject(
 						migrated.error === MigrationFailureReason.TargetVersionTooNew
 							? TLIncompatibilityReason.ServerTooOld
 							: TLIncompatibilityReason.ClientTooOld
 					)
-					return
 				}
 
 				connect({

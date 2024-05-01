@@ -2,7 +2,7 @@ import { SerializedSchema, UnknownRecord } from '@tldraw/store'
 import { NetworkDiff, ObjectDiff, RecordOpType } from './diff'
 
 /** @public */
-export const TLSYNC_PROTOCOL_VERSION = 5
+export const TLSYNC_PROTOCOL_VERSION = 6
 
 /** @public */
 export const TLIncompatibilityReason = {
