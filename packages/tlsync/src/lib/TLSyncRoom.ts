@@ -663,9 +663,7 @@ export class TLSyncRoom<R extends UnknownRecord> {
 					type: 'connect',
 					connectRequestId,
 					diff: {
-						// send them a bad record to put them into a state where they don't try to reconnect
-						// and it shows 'offline'
-						'shape:shape': [RecordOpType.Put, { id: 'shape:shape', typeName: 'shape' } as any],
+						// send them an empty room
 					},
 					hydrationType: 'wipe_all',
 					protocolVersion: getTlsyncProtocolVersion(),
