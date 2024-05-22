@@ -71,6 +71,7 @@ import { TLShapeId } from '@tldraw/tlschema';
 import { TLShapePartial } from '@tldraw/tlschema';
 import { TLStore } from '@tldraw/tlschema';
 import { TLStoreProps } from '@tldraw/tlschema';
+import { TLStoreSnapshot } from '@tldraw/tlschema';
 import { TLUnknownBinding } from '@tldraw/tlschema';
 import { TLUnknownShape } from '@tldraw/tlschema';
 import { TLVideoAsset } from '@tldraw/tlschema';
@@ -898,6 +899,8 @@ export class Editor extends EventEmitter<TLEventMap> {
     getShapeUtil<T extends ShapeUtil>(type: T extends ShapeUtil<infer R> ? R['type'] : string): T;
     getSharedOpacity(): SharedStyle<number>;
     getSharedStyles(): ReadonlySharedStyleMap;
+    // (undocumented)
+    getSnapshot(): TLEditorSnapshot;
     getSortedChildIdsForParent(parent: TLPage | TLParentId | TLShape): TLShapeId[];
     getStateDescendant<T extends StateNode>(path: string): T | undefined;
     getStyleForNextShape<T>(style: StyleProp<T>): T;
@@ -964,6 +967,12 @@ export class Editor extends EventEmitter<TLEventMap> {
     isShapeOrAncestorLocked(shape?: TLShape): boolean;
     // (undocumented)
     isShapeOrAncestorLocked(id?: TLShapeId): boolean;
+    // (undocumented)
+    loadSnapshot(this: {
+        store: TLStore;
+    }, snapshot: Partial<TLEditorSnapshot>, opts?: {
+        skipFocus?: boolean;
+    }): void;
     mark(markId?: string): this;
     moveShapesToPage(shapes: TLShape[] | TLShapeId[], pageId: TLPageId): this;
     nudgeShapes(shapes: TLShape[] | TLShapeId[], offset: VecLike): this;
@@ -1054,7 +1063,7 @@ export class Editor extends EventEmitter<TLEventMap> {
     updatePage(partial: RequiredKeys<TLPage, 'id'>): this;
     updateShape<T extends TLUnknownShape>(partial: null | TLShapePartial<T> | undefined): this;
     updateShapes<T extends TLUnknownShape>(partials: (null | TLShapePartial<T> | undefined)[]): this;
-    updateViewportScreenBounds(screenBounds: Box, center?: boolean): this;
+    updateViewportScreenBounds(screenBounds?: Box, center?: boolean): this;
     readonly user: UserPreferencesManager;
     visitDescendants(parent: TLPage | TLParentId | TLShape, visitor: (id: TLShapeId) => false | void): this;
     zoomIn(point?: Vec, opts?: TLCameraMoveOptions): this;
@@ -2189,7 +2198,7 @@ export type TldrawEditorProps = Expand<TldrawEditorBaseProps & ({
     migrations?: readonly MigrationSequence[];
     persistenceKey?: string;
     sessionId?: string;
-    snapshot?: StoreSnapshot<TLRecord>;
+    snapshot?: StoreSnapshot<TLRecord> | TLEditorSnapshot;
     store?: undefined;
 } | {
     store: TLStore | TLStoreWithStatus;
@@ -2212,6 +2221,14 @@ export interface TLEditorOptions {
     store: TLStore;
     tools: readonly TLStateNodeConstructor[];
     user?: TLUser;
+}
+
+// @public (undocumented)
+export interface TLEditorSnapshot {
+    // (undocumented)
+    document: TLStoreSnapshot;
+    // (undocumented)
+    session: TLSessionStateSnapshot;
 }
 
 // @public (undocumented)
@@ -2828,7 +2845,7 @@ export function useIsEditing(shapeId: TLShapeId): boolean;
 export function useLocalStore({ persistenceKey, sessionId, ...rest }: {
     persistenceKey?: string;
     sessionId?: string;
-    snapshot?: StoreSnapshot<TLRecord>;
+    snapshot?: StoreSnapshot<TLRecord> | TLEditorSnapshot;
 } & TLStoreOptions): TLStoreWithStatus;
 
 // @internal (undocumented)
@@ -2867,7 +2884,7 @@ export function useSvgExportContext(): {
 
 // @public (undocumented)
 export function useTLStore(opts: TLStoreOptions & {
-    snapshot?: StoreSnapshot<TLRecord>;
+    snapshot?: StoreSnapshot<TLRecord> | TLEditorSnapshot;
 }): TLStore;
 
 // @public (undocumented)
