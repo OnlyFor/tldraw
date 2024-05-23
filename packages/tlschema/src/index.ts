@@ -69,7 +69,7 @@ export { CameraRecordType, type TLCamera, type TLCameraId } from './records/TLCa
 export { DocumentRecordType, TLDOCUMENT_ID, type TLDocument } from './records/TLDocument'
 export {
 	TLINSTANCE_ID,
-	shouldKeyBePreservedBetweenSessions,
+	pluckPreservingValues,
 	type TLInstance,
 	type TLInstanceId,
 } from './records/TLInstance'

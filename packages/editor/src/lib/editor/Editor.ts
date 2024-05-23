@@ -51,7 +51,7 @@ import {
 	getShapePropKeysByStyle,
 	isPageId,
 	isShapeId,
-	shouldKeyBePreservedBetweenSessions,
+	pluckPreservingValues,
 } from '@tldraw/tlschema'
 import {
 	IndexKey,
@@ -74,7 +74,6 @@ import {
 	hasOwnProperty,
 	last,
 	lerp,
-	objectMapEntries,
 	sortById,
 	sortByIndex,
 	structuredClone,
@@ -5260,7 +5259,7 @@ export class Editor extends EventEmitter<TLEventMap> {
 			// TLEditorSnapshot
 			snapshot = _snapshot
 		}
-		const prevInstanceState = this.store.get(TLINSTANCE_ID)
+		const preservingInstanceState = pluckPreservingValues(this.store.get(TLINSTANCE_ID))
 
 		this.store.atomic(() => {
 			// first load the document state (this will wipe the store if it happens)
@@ -5270,18 +5269,8 @@ export class Editor extends EventEmitter<TLEventMap> {
 
 			// then make sure we preserve those instance state properties that must be preserved
 			// this is a noop if the document state wasn't loaded above
-			if (prevInstanceState && this instanceof Editor) {
-				const nextInstanceState: TLInstance = {
-					...prevInstanceState,
-					...this.store.get(TLINSTANCE_ID)!,
-				}
-				for (const [key, preserves] of objectMapEntries(shouldKeyBePreservedBetweenSessions)) {
-					if (preserves) {
-						// @ts-expect-error
-						nextInstanceState[key] = prevInstanceState[key]
-					}
-				}
-				this.updateInstanceState(nextInstanceState)
+			if (preservingInstanceState) {
+				this.store.update(TLINSTANCE_ID, (r) => ({ ...r, ...preservingInstanceState }))
 			}
 
 			// finally reinstate the UI state
