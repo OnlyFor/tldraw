@@ -1,5 +1,4 @@
-import { BoxModel, TLStoreSnapshot } from '@tldraw/tlschema'
-import { TLSessionStateSnapshot } from '../../config/TLSessionStateSnapshot'
+import { BoxModel } from '@tldraw/tlschema'
 import { Box } from '../../primitives/Box'
 import { VecLike } from '../../primitives/Vec'
 
@@ -123,10 +122,4 @@ export type TLCameraOptions = {
 					y: 'free' | 'fixed' | 'inside' | 'outside' | 'contain'
 			  }
 	}
-}
-
-/** @public */
-export interface TLEditorSnapshot {
-	document: TLStoreSnapshot
-	session: TLSessionStateSnapshot
 }
