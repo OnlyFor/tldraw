@@ -116,7 +116,6 @@ import { TLShapeId } from '@tldraw/editor';
 import { TLShapePartial } from '@tldraw/editor';
 import { TLShapeUtilCanvasSvgDef } from '@tldraw/editor';
 import { TLShapeUtilFlag } from '@tldraw/editor';
-import { TLSnapshotWithStatus } from '@tldraw/editor';
 import { TLStore } from '@tldraw/editor';
 import { TLStoreSnapshot } from '@tldraw/editor';
 import { TLStoreWithStatus } from '@tldraw/editor';
@@ -1558,7 +1557,7 @@ export type TldrawImageProps = Expand<{
 export type TldrawProps = Expand<(Omit<TldrawUiProps, 'components'> & Omit<TldrawEditorBaseProps, 'components'> & {
     components?: TLComponents;
 }) & Partial<TLExternalContentProps> & ({
-    snapshot?: TLEditorSnapshot | TLSnapshotWithStatus | TLStoreSnapshot;
+    snapshot?: TLEditorSnapshot | TLStoreSnapshot;
     defaultName?: string;
     migrations?: readonly MigrationSequence[];
     persistenceKey?: string;

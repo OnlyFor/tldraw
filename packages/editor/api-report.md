@@ -2201,7 +2201,7 @@ export type TldrawEditorProps = Expand<TldrawEditorBaseProps & ({
     migrations?: readonly MigrationSequence[];
     persistenceKey?: string;
     sessionId?: string;
-    snapshot?: TLEditorSnapshot | TLSnapshotWithStatus | TLStoreSnapshot;
+    snapshot?: TLEditorSnapshot | TLStoreSnapshot;
     store?: undefined;
 } | {
     store: TLStore | TLStoreWithStatus;
@@ -2670,21 +2670,6 @@ export type TLSnapIndicatorProps = {
 };
 
 // @public (undocumented)
-export type TLSnapshotWithStatus = {
-    readonly error: Error;
-    readonly snapshot?: undefined;
-    readonly status: 'error';
-} | {
-    readonly error?: undefined;
-    readonly snapshot: TLEditorSnapshot | TLStoreSnapshot;
-    readonly status: 'ready';
-} | {
-    readonly error?: undefined;
-    readonly snapshot?: undefined;
-    readonly status: 'loading';
-};
-
-// @public (undocumented)
 export interface TLStateNodeConstructor {
     // (undocumented)
     new (editor: Editor, parent?: StateNode): StateNode;
@@ -2860,10 +2845,10 @@ export function useIsDarkMode(): boolean;
 export function useIsEditing(shapeId: TLShapeId): boolean;
 
 // @internal (undocumented)
-export function useLocalStore({ persistenceKey, sessionId, snapshot, ...rest }: {
+export function useLocalStore({ persistenceKey, sessionId, ...rest }: {
     persistenceKey?: string;
     sessionId?: string;
-    snapshot?: TLEditorSnapshot | TLSnapshotWithStatus | TLStoreSnapshot;
+    snapshot?: TLEditorSnapshot | TLStoreSnapshot;
 } & TLStoreOptions): TLStoreWithStatus;
 
 // @internal (undocumented)
