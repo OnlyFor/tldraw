@@ -42,7 +42,6 @@ import {
 	TLShapeId,
 	TLShapePartial,
 	TLStore,
-	TLStoreSnapshot,
 	TLUnknownBinding,
 	TLUnknownShape,
 	TLVideoAsset,
@@ -79,7 +78,6 @@ import {
 import EventEmitter from 'eventemitter3'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
-import { TLEditorSnapshot, getSnapshot, loadSnapshot } from '../config/TLEditorSnapshot'
 import { TLUser, createTLUser } from '../config/createTLUser'
 import { checkBindings } from '../config/defaultBindings'
 import { checkShapesAndAddCore } from '../config/defaultShapes'
@@ -5212,16 +5210,6 @@ export class Editor extends EventEmitter<TLEventMap> {
 	}
 	deleteBinding(binding: TLBinding | TLBindingId) {
 		return this.deleteBindings([binding])
-	}
-
-	/* -------------------- Snapshots ------------------- */
-
-	getSnapshot(): TLEditorSnapshot {
-		return getSnapshot(this.store)
-	}
-
-	loadSnapshot(snapshot: Partial<TLEditorSnapshot> | TLStoreSnapshot) {
-		loadSnapshot(this.store, snapshot)
 	}
 
 	/* -------------------- Commands -------------------- */
