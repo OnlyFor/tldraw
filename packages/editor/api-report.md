@@ -1233,6 +1233,9 @@ export function getRotationSnapshot({ editor }: {
     editor: Editor;
 }): null | TLRotationSnapshot;
 
+// @public (undocumented)
+export function getSnapshot(store: TLStore): TLEditorSnapshot;
+
 // @public
 export function getSvgPathFromPoints(points: VecLike[], closed?: boolean): string;
 
