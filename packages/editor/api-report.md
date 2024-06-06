@@ -1463,6 +1463,8 @@ export class HistoryManager<R extends UnknownRecord> {
     onBatchComplete: () => void;
     // (undocumented)
     redo: () => this | undefined;
+    // (undocumented)
+    squashToMark: (id: string) => this;
     // @internal (undocumented)
     stacks: Atom<    {
     redos: Stack<TLHistoryEntry<R>>;
