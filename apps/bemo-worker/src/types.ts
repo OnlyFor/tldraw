@@ -3,6 +3,7 @@ import { BemoDO } from './BemoDO'
 export interface Environment {
 	// bindings
 	BEMO_DO: DurableObjectNamespace<BemoDO>
+	BEMO_BUCKET: R2Bucket
 
 	TLDRAW_ENV: string | undefined
 	SENTRY_DSN: string | undefined
