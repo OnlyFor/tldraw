@@ -72,6 +72,7 @@ export async function handleUserAssetGet({ request, bucket, objectName, context 
 
 		const url = new URL(request.url)
 		url.searchParams.delete('tl_opt')
+		url.searchParams.set('image-resizing', '1')
 
 		console.log('fetch-transformed', url.toString(), imageOptions)
 		const response = await fetch(url, { headers: request.headers, cf: { image: imageOptions } })
