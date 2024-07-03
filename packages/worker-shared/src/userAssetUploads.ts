@@ -30,7 +30,7 @@ export async function handleUserAssetUpload({
 export async function handleUserAssetGet({ request, bucket, objectName, context }: UserAssetOpts) {
 	const cacheUrl = new URL(request.url)
 	const shouldOptimize =
-		request.query.tl_opt && /image-resizing/.test(request.headers.get('via') ?? '')
+		request.query.tl_opt && !/image-resizing/.test(request.headers.get('via') ?? '')
 
 	let format = null
 	if (shouldOptimize) {
