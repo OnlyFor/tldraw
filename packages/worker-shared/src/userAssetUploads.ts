@@ -76,6 +76,7 @@ export async function handleUserAssetGet({ request, bucket, objectName, context 
 
 		console.log('fetch-transformed', url.toString(), imageOptions)
 		const response = await fetch(url, { headers: request.headers, cf: { image: imageOptions } })
+		console.log('transformed-response', response)
 
 		headers = new Headers(response.headers)
 		body = response.body
