@@ -6,7 +6,6 @@ import {
 	WeakCache,
 	getAssetFromIndexedDb,
 } from 'tldraw'
-import { ASSET_BUCKET_ORIGIN } from './config'
 import { isDevelopmentEnv } from './env'
 
 const objectURLCache = new WeakCache<TLAsset, ReturnType<typeof getLocalAssetObjectURL>>()
@@ -60,7 +59,11 @@ export const resolveAsset =
 			return asset.props.src
 		}
 
-		return `${ASSET_BUCKET_ORIGIN}/cdn-cgi/image/format=auto,width=${width},dpr=${context.dpr},fit=scale-down,quality=92/${asset.props.src}`
+		const url = new URL(asset.props.src)
+		url.searchParams.set('tl_opt', '1')
+		url.searchParams.set('w', width.toString())
+		url.searchParams.set('dpr', context.dpr.toString())
+		return url.toString()
 	}
 
 async function getLocalAssetObjectURL(persistenceKey: string, assetId: TLAssetId) {
