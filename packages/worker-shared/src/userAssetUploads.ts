@@ -44,11 +44,13 @@ export async function handleUserAssetGet({ request, bucket, objectName, context 
 
 	// if we have a format, we want to cache the asset with the format in the URL
 	if (format) cacheUrl.searchParams.set('format', format)
+	console.log('cacheUrl', cacheUrl.toString())
 	const cacheKey = new Request(cacheUrl.toString(), request)
 
 	// this cache automatically handles range responses etc.
 	const cachedResponse = await caches.default.match(cacheKey)
 	if (cachedResponse) {
+		console.log('cache hit')
 		return cachedResponse
 	}
 
@@ -59,19 +61,25 @@ export async function handleUserAssetGet({ request, bucket, objectName, context 
 	// if we're requesting an optimized resource, we-refetch from ourselves with cloudflare's
 	// special extra image resizing options:
 	if (shouldOptimize) {
-		const imageOptions: RequestInitCfPropertiesImage = {}
+		const imageOptions: RequestInitCfPropertiesImage = {
+			fit: 'scale-down',
+			quality: 92,
+		}
 		if (format) imageOptions.format = format
 		if (request.query.w) imageOptions.width = Number(request.query.w)
+		if (request.query.dpr) imageOptions.dpr = Number(request.query.dpr)
 
 		const url = new URL(request.url)
 		url.searchParams.delete('tl_opt')
 
+		console.log('fetch-transformed', url.toString(), imageOptions)
 		const response = await fetch(url, { headers: request.headers, cf: { image: imageOptions } })
 
 		headers = new Headers(response.headers)
 		body = response.body
 		status = response.status
 	} else {
+		console.log('fetch-r2')
 		// otherwise, we fetch the asset directly from the bucket
 		const object = await bucket.get(objectName, {
 			range: request.headers,
