@@ -30,7 +30,7 @@ export async function handleUserAssetUpload({
 export async function handleUserAssetGet({ request, bucket, objectName, context }: UserAssetOpts) {
 	const cacheUrl = new URL(request.url)
 	const shouldOptimize =
-		request.query.tl_opt !== undefined && /image-resizing/.test(request.headers.get('via') ?? '')
+		request.query.tl_opt && /image-resizing/.test(request.headers.get('via') ?? '')
 
 	let format = null
 	if (shouldOptimize) {
@@ -44,6 +44,7 @@ export async function handleUserAssetGet({ request, bucket, objectName, context 
 
 	// if we have a format, we want to cache the asset with the format in the URL
 	if (format) cacheUrl.searchParams.set('format', format)
+	console.log('query', request.query)
 	console.log('cacheUrl', cacheUrl.toString())
 	const cacheKey = new Request(cacheUrl.toString(), request)
 
