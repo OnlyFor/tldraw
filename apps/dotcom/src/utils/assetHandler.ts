@@ -6,7 +6,8 @@ import {
 	WeakCache,
 	getAssetFromIndexedDb,
 } from 'tldraw'
-import { ASSET_BUCKET_ORIGIN, ASSET_UPLOADER_URL } from './config'
+import { ASSET_BUCKET_ORIGIN } from './config'
+import { isDevelopmentEnv } from './env'
 
 const objectURLCache = new WeakCache<TLAsset, ReturnType<typeof getLocalAssetObjectURL>>()
 
@@ -55,13 +56,11 @@ export const resolveAsset =
 
 		const width = Math.ceil(asset.props.w * context.steppedScreenScale * networkCompensation)
 
-		if (process.env.NODE_ENV === 'development') {
+		if (isDevelopmentEnv) {
 			return asset.props.src
 		}
 
-		// On preview, builds the origin for the asset won't be the right one for the Cloudflare transform.
-		const src = asset.props.src.replace(ASSET_UPLOADER_URL, ASSET_BUCKET_ORIGIN)
-		return `${ASSET_BUCKET_ORIGIN}/cdn-cgi/image/format=auto,width=${width},dpr=${context.dpr},fit=scale-down,quality=92/${src}`
+		return `${ASSET_BUCKET_ORIGIN}/cdn-cgi/image/format=auto,width=${width},dpr=${context.dpr},fit=scale-down,quality=92/${asset.props.src}`
 	}
 
 async function getLocalAssetObjectURL(persistenceKey: string, assetId: TLAssetId) {
