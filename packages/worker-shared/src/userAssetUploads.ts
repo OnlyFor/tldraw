@@ -1,4 +1,4 @@
-import { ExecutionContext, R2Bucket, Response } from '@cloudflare/workers-types'
+import { ExecutionContext, R2Bucket } from '@cloudflare/workers-types'
 import { IRequest } from 'itty-router'
 import { notFound } from './errors'
 
