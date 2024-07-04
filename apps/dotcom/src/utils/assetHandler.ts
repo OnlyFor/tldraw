@@ -48,7 +48,8 @@ export const resolveAsset =
 		const url = new URL(asset.props.src)
 
 		// we only transform images that are hosted on domains we control
-		const isTldrawImage = isDevelopmentEnv || /\.tldraw\.(?:com|svg|workers\.dev)$/.test(url.host)
+		const isTldrawImage =
+			isDevelopmentEnv || /\.tldraw\.(?:com|xyz|dev|workers\.dev)$/.test(url.host)
 
 		if (!isTldrawImage) return asset.props.src
 
