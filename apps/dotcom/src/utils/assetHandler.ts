@@ -62,10 +62,14 @@ export const resolveAsset =
 			const networkCompensation =
 				!context.networkEffectiveType || context.networkEffectiveType === '4g' ? 1 : 0.5
 
-			const width = Math.ceil(asset.props.w * context.steppedScreenScale * networkCompensation)
+			const width = Math.ceil(
+				Math.min(
+					asset.props.w * context.steppedScreenScale * networkCompensation * context.dpr,
+					asset.props.w
+				)
+			)
 
 			url.searchParams.set('w', width.toString())
-			url.searchParams.set('dpr', context.dpr.toString())
 		}
 
 		const newUrl = `${IMAGE_WORKER}/${url.host}/${url.toString().slice(url.origin.length + 1)}`

@@ -12,7 +12,6 @@ interface Environment {
 const queryValidator = T.object({
 	w: T.string.optional(),
 	q: T.string.optional(),
-	dpr: T.string.optional(),
 })
 
 export default class Worker extends WorkerEntrypoint<Environment> {
@@ -63,7 +62,6 @@ export default class Worker extends WorkerEntrypoint<Environment> {
 			if (format) imageOptions.format = format
 			if (query.w) imageOptions.width = Number(query.w)
 			if (query.q) imageOptions.quality = Number(query.q)
-			if (query.dpr) imageOptions.dpr = Number(query.dpr)
 
 			const actualResponse = await fetch(passthroughUrl, { cf: { image: imageOptions } })
 			if (!actualResponse.headers.get('content-type')?.startsWith('image/')) return notFound()
