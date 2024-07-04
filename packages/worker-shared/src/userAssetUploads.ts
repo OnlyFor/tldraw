@@ -1,8 +1,6 @@
-import { ExecutionContext, R2Bucket, RequestInitCfPropertiesImage } from '@cloudflare/workers-types'
+import { ExecutionContext, R2Bucket } from '@cloudflare/workers-types'
 import { IRequest } from 'itty-router'
 import { notFound } from './errors'
-
-declare const fetch: typeof import('@cloudflare/workers-types').fetch
 
 interface UserAssetOpts {
 	request: IRequest
@@ -28,94 +26,45 @@ export async function handleUserAssetUpload({
 }
 
 export async function handleUserAssetGet({ request, bucket, objectName, context }: UserAssetOpts) {
-	const cacheUrl = new URL(request.url)
-	const shouldOptimize =
-		request.query.tl_opt && !/image-resizing/.test(request.headers.get('via') ?? '')
-
-	let format = null
-	if (shouldOptimize) {
-		const accept = request.headers.get('Accept')
-		if (accept && /image\/avif/.test(accept)) {
-			format = 'avif' as const
-		} else if (accept && /image\/webp/.test(accept)) {
-			format = 'webp' as const
-		}
-	}
-
-	// if we have a format, we want to cache the asset with the format in the URL
-	if (format) cacheUrl.searchParams.set('format', format)
-	console.log('query', request.query)
-	console.log('cacheUrl', cacheUrl.toString())
-	const cacheKey = new Request(cacheUrl.toString(), request)
+	const cacheKey = new URL(request.url)
 
 	// this cache automatically handles range responses etc.
 	const cachedResponse = await caches.default.match(cacheKey)
 	if (cachedResponse) {
-		console.log('cache hit')
 		return cachedResponse
 	}
 
-	let headers
-	let body
-	let status
+	const object = await bucket.get(objectName, {
+		range: request.headers,
+		onlyIf: request.headers,
+	})
 
-	// if we're requesting an optimized resource, we-refetch from ourselves with cloudflare's
-	// special extra image resizing options:
-	if (shouldOptimize) {
-		const imageOptions: RequestInitCfPropertiesImage = {
-			fit: 'scale-down',
-			quality: 92,
-		}
-		if (format) imageOptions.format = format
-		if (request.query.w) imageOptions.width = Number(request.query.w)
-		if (request.query.dpr) imageOptions.dpr = Number(request.query.dpr)
-
-		const url = new URL(request.url)
-		url.searchParams.delete('tl_opt')
-		url.searchParams.set('image-resizing', '1')
-
-		console.log('fetch-transformed', url.toString(), imageOptions)
-		const response = await fetch(url, { headers: request.headers, cf: { image: imageOptions } })
-		console.log('transformed-response', response)
-
-		headers = new Headers(response.headers)
-		body = response.body
-		status = response.status
-	} else {
-		console.log('fetch-r2')
-		// otherwise, we fetch the asset directly from the bucket
-		const object = await bucket.get(objectName, {
-			range: request.headers,
-			onlyIf: request.headers,
-		})
-
-		if (!object) {
-			return notFound()
-		}
-
-		headers = new Headers()
-		object.writeHttpMetadata(headers)
-		headers.set('etag', object.httpEtag)
-		if (object.range) {
-			let start
-			let end
-			if ('suffix' in object.range) {
-				start = object.size - object.range.suffix
-				end = object.size - 1
-			} else {
-				start = object.range.offset ?? 0
-				end = object.range.length ? start + object.range.length - 1 : object.size - 1
-			}
-			headers.set('content-range', `bytes ${start}-${end}/${object.size}`)
-		}
-
-		body = 'body' in object && object.body ? object.body : null
+	if (!object) {
+		return notFound()
 	}
+
+	const headers = new Headers()
+	object.writeHttpMetadata(headers)
+	headers.set('etag', object.httpEtag)
+	if (object.range) {
+		let start
+		let end
+		if ('suffix' in object.range) {
+			start = object.size - object.range.suffix
+			end = object.size - 1
+		} else {
+			start = object.range.offset ?? 0
+			end = object.range.length ? start + object.range.length - 1 : object.size - 1
+		}
+		headers.set('content-range', `bytes ${start}-${end}/${object.size}`)
+	}
+
+	const body = 'body' in object && object.body ? object.body : null
 
 	// assets are immutable, so we can cache them basically forever:
 	headers.set('cache-control', 'public, max-age=31536000, immutable')
 
-	status = body ? (request.headers.get('range') !== null ? 206 : 200) : 304
+	const status = body ? (request.headers.get('range') !== null ? 206 : 200) : 304
 
 	if (status === 200) {
 		const [cacheBody, responseBody] = body!.tee()

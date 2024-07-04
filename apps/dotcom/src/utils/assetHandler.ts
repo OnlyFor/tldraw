@@ -6,6 +6,7 @@ import {
 	WeakCache,
 	getAssetFromIndexedDb,
 } from 'tldraw'
+import { IMAGE_WORKER } from './config'
 import { isDevelopmentEnv } from './env'
 
 const objectURLCache = new WeakCache<TLAsset, ReturnType<typeof getLocalAssetObjectURL>>()
@@ -44,26 +45,31 @@ export const resolveAsset =
 		// Don't try to transform vector images.
 		if (MediaHelpers.isVectorImageType(asset?.props.mimeType)) return asset.props.src
 
+		const url = new URL(asset.props.src)
+
+		// we only transform images that are hosted on domains we control
+		const isTldrawImage = isDevelopmentEnv || /\.tldraw\.(?:com|svg|workers\.dev)$/.test(url.host)
+
+		if (!isTldrawImage) return asset.props.src
+
 		// Assets that are under a certain file size aren't worth transforming (and incurring cost).
-		if (asset.props.fileSize === -1 || asset.props.fileSize < 1024 * 1024 * 1.5 /* 1.5 MB */)
-			return asset.props.src
+		// We still send them through the image worker to get them optimized though.
+		const isWorthResizing = asset.props.fileSize !== -1 && asset.props.fileSize >= 1024 * 1024 * 1.5
 
-		// N.B. navigator.connection is only available in certain browsers (mainly Blink-based browsers)
-		// 4g is as high the 'effectiveType' goes and we can pick a lower effective image quality for slower connections.
-		const networkCompensation =
-			!context.networkEffectiveType || context.networkEffectiveType === '4g' ? 1 : 0.5
+		if (isWorthResizing) {
+			// N.B. navigator.connection is only available in certain browsers (mainly Blink-based browsers)
+			// 4g is as high the 'effectiveType' goes and we can pick a lower effective image quality for slower connections.
+			const networkCompensation =
+				!context.networkEffectiveType || context.networkEffectiveType === '4g' ? 1 : 0.5
 
-		const width = Math.ceil(asset.props.w * context.steppedScreenScale * networkCompensation)
+			const width = Math.ceil(asset.props.w * context.steppedScreenScale * networkCompensation)
 
-		if (isDevelopmentEnv) {
-			return asset.props.src
+			url.searchParams.set('w', width.toString())
+			url.searchParams.set('dpr', context.dpr.toString())
 		}
 
-		const url = new URL(asset.props.src)
-		url.searchParams.set('tl_opt', '1')
-		url.searchParams.set('w', width.toString())
-		url.searchParams.set('dpr', context.dpr.toString())
-		return url.toString()
+		const newUrl = `${IMAGE_WORKER}/${url.host}/${url.toString().slice(url.origin.length + 1)}`
+		return newUrl
 	}
 
 async function getLocalAssetObjectURL(persistenceKey: string, assetId: TLAssetId) {
