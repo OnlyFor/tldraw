@@ -1,4 +1,4 @@
-import { ExecutionContext, R2Bucket } from '@cloudflare/workers-types'
+import { ExecutionContext, R2Bucket, Response } from '@cloudflare/workers-types'
 import { IRequest } from 'itty-router'
 import { notFound } from './errors'
 
@@ -59,11 +59,10 @@ export async function handleUserAssetGet({ request, bucket, objectName, context 
 		headers.set('content-range', `bytes ${start}-${end}/${object.size}`)
 	}
 
-	const body = 'body' in object && object.body ? object.body : null
-
 	// assets are immutable, so we can cache them basically forever:
 	headers.set('cache-control', 'public, max-age=31536000, immutable')
 
+	const body = 'body' in object && object.body ? object.body : null
 	const status = body ? (request.headers.get('range') !== null ? 206 : 200) : 304
 
 	if (status === 200) {
