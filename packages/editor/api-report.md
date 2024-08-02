@@ -797,7 +797,7 @@ export class EdgeScrollManager {
 
 // @public (undocumented)
 export class Editor extends EventEmitter<TLEventMap> {
-    constructor({ store, user, shapeUtils, bindingUtils, tools, getContainer, cameraOptions, initialState, autoFocus, inferDarkMode, options, urlStateSync, }: TLEditorOptions);
+    constructor({ store, user, shapeUtils, bindingUtils, tools, getContainer, cameraOptions, initialState, autoFocus, inferDarkMode, options, }: TLEditorOptions);
     addOpenMenu(id: string): this;
     addStateToUrl(opts?: {
         paramNames?: TLUrlStateParamNames;
@@ -2807,7 +2807,6 @@ export interface TLEditorOptions {
     shapeUtils: readonly TLAnyShapeUtilConstructor[];
     store: TLStore;
     tools: readonly TLStateNodeConstructor[];
-    urlStateSync?: TLUrlStateOptions;
     user?: TLUser;
 }
 
