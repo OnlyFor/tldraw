@@ -490,6 +490,9 @@ export const coreShapes: readonly [typeof GroupShapeUtil];
 // @public
 export function counterClockwiseAngleDist(a0: number, a1: number): number;
 
+// @internal (undocumented)
+export function createDeepLinkString(deepLink: TLDeepLink): string;
+
 // @public
 export function createSessionStateSnapshotSignal(store: TLStore): Signal<null | TLSessionStateSnapshot>;
 
@@ -799,10 +802,6 @@ export class EdgeScrollManager {
 export class Editor extends EventEmitter<TLEventMap> {
     constructor({ store, user, shapeUtils, bindingUtils, tools, getContainer, cameraOptions, initialState, autoFocus, inferDarkMode, options, }: TLEditorOptions);
     addOpenMenu(id: string): this;
-    addStateToUrl(opts?: {
-        paramNames?: TLUrlStateParamNames;
-        url?: string | URL;
-    }): URL;
     alignShapes(shapes: TLShape[] | TLShapeId[], operation: 'bottom' | 'center-horizontal' | 'center-vertical' | 'left' | 'right' | 'top'): this;
     animateShape(partial: null | TLShapePartial | undefined, opts?: Partial<{
         animation: Partial<{
@@ -869,6 +868,12 @@ export class Editor extends EventEmitter<TLEventMap> {
     createAssets(assets: TLAsset[]): this;
     createBinding<B extends TLBinding = TLBinding>(partial: TLBindingCreate<B>): this;
     createBindings(partials: TLBindingCreate[]): this;
+    createDeepLink(opts?: {
+        param?: string;
+        to?: TLDeepLink;
+        updateAddressBar?: boolean;
+        url?: string | URL;
+    }): URL;
     // @internal (undocumented)
     createErrorAnnotations(origin: string, willCrashApp: 'unknown' | boolean): {
         extras: {
@@ -1099,6 +1104,10 @@ export class Editor extends EventEmitter<TLEventMap> {
         groupId: TLShapeId;
         select: boolean;
     }>): this;
+    handleDeepLink(opts?: {
+        param?: string;
+        url?: string | URL;
+    }): Editor;
     hasAncestor(shape: TLShape | TLShapeId | undefined, ancestorId: TLShapeId): boolean;
     // (undocumented)
     hasExternalAssetHandler(type: TLExternalAssetContent['type']): boolean;
@@ -1140,10 +1149,6 @@ export class Editor extends EventEmitter<TLEventMap> {
     // (undocumented)
     isShapeOrAncestorLocked(id?: TLShapeId): boolean;
     loadSnapshot(snapshot: Partial<TLEditorSnapshot> | TLStoreSnapshot): this;
-    loadStateFromUrl(opts?: {
-        paramNames?: TLUrlStateParamNames;
-        url?: string | URL;
-    }): Editor;
     // @deprecated
     mark(markId?: string): this;
     markHistoryStoppingPoint(name?: string): string;
@@ -1254,6 +1259,7 @@ export class Editor extends EventEmitter<TLEventMap> {
     updateCurrentPageState(partial: Partial<Omit<TLInstancePageState, 'editingShapeId' | 'focusedGroupId' | 'pageId' | 'selectedShapeIds'>>): this;
     // (undocumented)
     _updateCurrentPageState(partial: Partial<Omit<TLInstancePageState, 'selectedShapeIds'>>): void;
+    updateDeepLinkOnStateChange(opts?: TLUrlStateOptions): () => void;
     updateDocumentSettings(settings: Partial<TLDocument>): this;
     updateInstanceState(partial: Partial<Omit<TLInstance, 'currentPageId'>>, historyOptions?: TLHistoryBatchOptions): this;
     // @internal (undocumented)
@@ -1263,7 +1269,6 @@ export class Editor extends EventEmitter<TLEventMap> {
     updateShapes<T extends TLUnknownShape>(partials: (null | TLShapePartial<T> | undefined)[]): this;
     // @internal (undocumented)
     _updateShapes(_partials: (null | TLShapePartial | undefined)[]): void;
-    updateUrlOnStateChange(opts?: TLUrlStateOptions): () => void;
     updateViewportScreenBounds(screenBounds?: Box, center?: boolean): this;
     uploadAsset(asset: TLAsset, file: File): Promise<string>;
     readonly user: UserPreferencesManager;
@@ -1889,6 +1894,9 @@ export function OptionalErrorBoundary({ children, fallback, ...props }: Omit<TLE
 
 // @public (undocumented)
 export type OptionalKeys<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+
+// @internal (undocumented)
+export function parseDeepLinkString(deepLinkString: string): TLDeepLink;
 
 // @public
 export function perimeterOfEllipse(rx: number, ry: number): number;
@@ -2619,6 +2627,19 @@ export interface TLCursorProps {
     // (undocumented)
     zoom: number;
 }
+
+// @public (undocumented)
+export type TLDeepLink = {
+    bounds: Box;
+    pageId?: TLPageId;
+    type: 'viewport';
+} | {
+    pageId: TLPageId;
+    type: 'page';
+} | {
+    shapeIds: TLShapeId[];
+    type: 'selection';
+};
 
 // @public (undocumented)
 export const TldrawEditor: React_2.NamedExoticComponent<TldrawEditorProps>;
@@ -3421,15 +3442,7 @@ export interface TLUrlStateOptions {
     // (undocumented)
     onChange?(url: URL): void;
     // (undocumented)
-    paramNames?: TLUrlStateParamNames;
-}
-
-// @public (undocumented)
-export interface TLUrlStateParamNames {
-    // (undocumented)
-    page?: null | string;
-    // (undocumented)
-    viewport?: null | string;
+    param?: string;
 }
 
 // @public (undocumented)
