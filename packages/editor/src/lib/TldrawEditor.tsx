@@ -387,20 +387,7 @@ function TldrawEditorWithReadyStore({
 
 	const deepLinks = useShallowObjectIdentity(_deepLinks === true ? {} : _deepLinks)
 	const deepLinksRef = useRef(deepLinks)
-
-	useLayoutEffect(() => {
-		const isCurrentVersionAnObject = typeof deepLinks === 'object'
-		const wasPreviousVersionAnObject = typeof deepLinksRef.current === 'object'
-		if (
-			(isCurrentVersionAnObject && !wasPreviousVersionAnObject) ||
-			(!isCurrentVersionAnObject && wasPreviousVersionAnObject)
-		) {
-			console.error('urlStateSync cannot be changed to an object after mounting')
-			return
-		}
-		if (!isCurrentVersionAnObject) return
-		Object.assign(deepLinksRef.current!, deepLinks)
-	}, [deepLinks])
+	deepLinksRef.current = deepLinks
 
 	useLayoutEffect(() => {
 		editorOptionsRef.current = {
@@ -409,7 +396,7 @@ function TldrawEditorWithReadyStore({
 			initialState,
 			cameraOptions,
 		}
-	}, [autoFocus, inferDarkMode, initialState, cameraOptions, deepLinks])
+	}, [autoFocus, inferDarkMode, initialState, cameraOptions])
 
 	useLayoutEffect(
 		() => {
