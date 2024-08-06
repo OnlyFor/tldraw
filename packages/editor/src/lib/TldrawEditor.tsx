@@ -13,6 +13,7 @@ import React, {
 } from 'react'
 
 import classNames from 'classnames'
+import { TLDeepLinkOptions } from '..'
 import { version } from '../version'
 import { OptionalErrorBoundary } from './components/ErrorBoundary'
 import { DefaultErrorFallback } from './components/default-components/DefaultErrorFallback'
@@ -21,7 +22,7 @@ import { TLStoreBaseOptions } from './config/createTLStore'
 import { TLUser, createTLUser } from './config/createTLUser'
 import { TLAnyBindingUtilConstructor } from './config/defaultBindings'
 import { TLAnyShapeUtilConstructor } from './config/defaultShapes'
-import { Editor, TLUrlStateOptions } from './editor/Editor'
+import { Editor } from './editor/Editor'
 import { TLStateNodeConstructor } from './editor/tools/StateNode'
 import { TLCameraOptions } from './editor/types/misc-types'
 import { ContainerProvider, useContainer } from './hooks/useContainer'
@@ -178,7 +179,7 @@ export interface TldrawEditorBaseProps {
 	/**
 	 * Options for syncing the editor's camera state with the URL.
 	 */
-	urlStateSync?: true | TLUrlStateOptions
+	deepLinks?: true | TLDeepLinkOptions
 }
 
 /**
@@ -360,7 +361,7 @@ function TldrawEditorWithReadyStore({
 	cameraOptions,
 	options,
 	licenseKey,
-	urlStateSync: _urlStateSync,
+	deepLinks: _deepLinks,
 }: Required<
 	TldrawEditorProps & {
 		store: TLStore
@@ -384,12 +385,12 @@ function TldrawEditorWithReadyStore({
 		cameraOptions,
 	})
 
-	const urlStateSync = useShallowObjectIdentity(_urlStateSync === true ? {} : _urlStateSync)
-	const urlStateSyncRef = useRef(urlStateSync)
+	const deepLinks = useShallowObjectIdentity(_deepLinks === true ? {} : _deepLinks)
+	const deepLinksRef = useRef(deepLinks)
 
 	useLayoutEffect(() => {
-		const isCurrentVersionAnObject = typeof urlStateSync === 'object'
-		const wasPreviousVersionAnObject = typeof urlStateSyncRef.current === 'object'
+		const isCurrentVersionAnObject = typeof deepLinks === 'object'
+		const wasPreviousVersionAnObject = typeof deepLinksRef.current === 'object'
 		if (
 			(isCurrentVersionAnObject && !wasPreviousVersionAnObject) ||
 			(!isCurrentVersionAnObject && wasPreviousVersionAnObject)
@@ -398,8 +399,8 @@ function TldrawEditorWithReadyStore({
 			return
 		}
 		if (!isCurrentVersionAnObject) return
-		Object.assign(urlStateSyncRef.current!, urlStateSync)
-	}, [urlStateSync])
+		Object.assign(deepLinksRef.current!, deepLinks)
+	}, [deepLinks])
 
 	useLayoutEffect(() => {
 		editorOptionsRef.current = {
@@ -408,7 +409,7 @@ function TldrawEditorWithReadyStore({
 			initialState,
 			cameraOptions,
 		}
-	}, [autoFocus, inferDarkMode, initialState, cameraOptions, urlStateSync])
+	}, [autoFocus, inferDarkMode, initialState, cameraOptions, deepLinks])
 
 	useLayoutEffect(
 		() => {
@@ -431,14 +432,14 @@ function TldrawEditorWithReadyStore({
 
 			// Use the ref here because we only want to do this once when the editor is created.
 			// We don't want changes to the urlStateSync prop to trigger creating new editors.
-			const urlStateSync = urlStateSyncRef.current
-			if (urlStateSync) {
-				if (!urlStateSync?.getUrl) {
+			const deepLinks = deepLinksRef.current
+			if (deepLinks) {
+				if (!deepLinks?.getUrl) {
 					// load the state from window.location
-					editor.handleDeepLink(urlStateSync)
+					editor.handleDeepLink(deepLinks)
 				} else {
 					// load the state from the provided URL
-					editor.handleDeepLink({ ...urlStateSync, url: urlStateSync.getUrl() })
+					editor.handleDeepLink({ ...deepLinks, url: deepLinks.getUrl() })
 				}
 			}
 
@@ -454,10 +455,10 @@ function TldrawEditorWithReadyStore({
 
 	useLayoutEffect(() => {
 		if (!editor) return
-		if (urlStateSync) {
-			return editor.updateDeepLinkOnStateChange(urlStateSync)
+		if (deepLinks) {
+			return editor.registerDeepLinkListener(deepLinks)
 		}
-	}, [editor, urlStateSync])
+	}, [editor, deepLinks])
 
 	// keep the editor up to date with the latest camera options
 	useLayoutEffect(() => {

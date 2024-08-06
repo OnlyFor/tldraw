@@ -490,7 +490,7 @@ export const coreShapes: readonly [typeof GroupShapeUtil];
 // @public
 export function counterClockwiseAngleDist(a0: number, a1: number): number;
 
-// @internal (undocumented)
+// @public
 export function createDeepLinkString(deepLink: TLDeepLink): string;
 
 // @public
@@ -1107,7 +1107,7 @@ export class Editor extends EventEmitter<TLEventMap> {
     handleDeepLink(opts?: {
         param?: string;
         url?: string | URL;
-    }): Editor;
+    } | TLDeepLink): Editor;
     hasAncestor(shape: TLShape | TLShapeId | undefined, ancestorId: TLShapeId): boolean;
     // (undocumented)
     hasExternalAssetHandler(type: TLExternalAssetContent['type']): boolean;
@@ -1168,6 +1168,7 @@ export class Editor extends EventEmitter<TLEventMap> {
     }): this;
     putExternalContent(info: TLExternalContent): Promise<void>;
     redo(): this;
+    registerDeepLinkListener(opts?: TLDeepLinkOptions): () => void;
     registerExternalAssetHandler<T extends TLExternalAssetContent['type']>(type: T, handler: ((info: TLExternalAssetContent & {
         type: T;
     }) => Promise<TLAsset>) | null): this;
@@ -1259,7 +1260,6 @@ export class Editor extends EventEmitter<TLEventMap> {
     updateCurrentPageState(partial: Partial<Omit<TLInstancePageState, 'editingShapeId' | 'focusedGroupId' | 'pageId' | 'selectedShapeIds'>>): this;
     // (undocumented)
     _updateCurrentPageState(partial: Partial<Omit<TLInstancePageState, 'selectedShapeIds'>>): void;
-    updateDeepLinkOnStateChange(opts?: TLUrlStateOptions): () => void;
     updateDocumentSettings(settings: Partial<TLDocument>): this;
     updateInstanceState(partial: Partial<Omit<TLInstance, 'currentPageId'>>, historyOptions?: TLHistoryBatchOptions): this;
     // @internal (undocumented)
@@ -1895,7 +1895,7 @@ export function OptionalErrorBoundary({ children, fallback, ...props }: Omit<TLE
 // @public (undocumented)
 export type OptionalKeys<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 
-// @internal (undocumented)
+// @public
 export function parseDeepLinkString(deepLinkString: string): TLDeepLink;
 
 // @public
@@ -2638,8 +2638,17 @@ export type TLDeepLink = {
     type: 'page';
 } | {
     shapeIds: TLShapeId[];
-    type: 'selection';
+    type: 'shapes';
 };
+
+// @public (undocumented)
+export interface TLDeepLinkOptions {
+    debounceMs?: number;
+    getTarget?(): TLDeepLink;
+    getUrl?(): string | URL;
+    onChange?(url: URL): void;
+    param?: string;
+}
 
 // @public (undocumented)
 export const TldrawEditor: React_2.NamedExoticComponent<TldrawEditorProps>;
@@ -2652,6 +2661,7 @@ export interface TldrawEditorBaseProps {
     children?: ReactNode;
     className?: string;
     components?: TLEditorComponents;
+    deepLinks?: TLDeepLinkOptions | true;
     inferDarkMode?: boolean;
     initialState?: string;
     licenseKey?: string;
@@ -2659,7 +2669,6 @@ export interface TldrawEditorBaseProps {
     options?: Partial<TldrawOptions>;
     shapeUtils?: readonly TLAnyShapeUtilConstructor[];
     tools?: readonly TLStateNodeConstructor[];
-    urlStateSync?: TLUrlStateOptions | true;
     user?: TLUser;
 }
 
@@ -3431,18 +3440,6 @@ export interface TLTickEventInfo {
     name: 'tick';
     // (undocumented)
     type: 'misc';
-}
-
-// @public (undocumented)
-export interface TLUrlStateOptions {
-    // (undocumented)
-    debounceMs?: number;
-    // (undocumented)
-    getUrl?(): string | URL;
-    // (undocumented)
-    onChange?(url: URL): void;
-    // (undocumented)
-    param?: string;
 }
 
 // @public (undocumented)
