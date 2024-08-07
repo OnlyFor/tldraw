@@ -426,7 +426,7 @@ function TldrawEditorWithReadyStore({
 					editor.handleDeepLink(deepLinks)
 				} else {
 					// load the state from the provided URL
-					editor.handleDeepLink({ ...deepLinks, url: deepLinks.getUrl() })
+					editor.handleDeepLink({ ...deepLinks, url: deepLinks.getUrl(editor) })
 				}
 			}
 
