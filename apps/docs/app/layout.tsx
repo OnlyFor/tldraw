@@ -11,6 +11,8 @@ import './github-dark.css'
 import './github-light.css'
 import './globals.css'
 
+export const dynamic = 'error'
+
 export const metadata: Metadata = {
 	metadataBase: new URL('https://tldraw.dev'),
 	title: {
