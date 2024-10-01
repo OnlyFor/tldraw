@@ -75,7 +75,7 @@ export function TlaFileContent({ fileSlug }: { fileSlug: string }) {
 				data-sidebar={isSidebarOpen}
 				data-sidebarmobile={isSidebarOpenMobile}
 			>
-				<TlaEditor fileSlug={fileId} />
+				<TlaEditor fileSlug={fileSlug} />
 			</div>
 		</div>
 	)
