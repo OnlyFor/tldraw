@@ -24,16 +24,52 @@ import {
 export type SubscribingFn<T> = (cb: (val: T) => void) => () => void
 
 /**
- * These are our private codes to be sent from server-\>client.
- * They are in the private range of the websocket code range.
- * See: https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent/code
+ * This the close code that we use on the server to signal to a socket that
+ * the connection is being closed because of a non-recoverable error.
  *
+ * You should use this if you need to close a connection.
+ *
+ * @example
+ * ```ts
+ * socket.close(TLSyncErrorCloseEventCode, TLSyncErrorCloseEventReason.NOT_FOUND)
+ * ```
+ *
+ * The `reason` parameter that you pass to `socket.close()` will be made available at `useSync().error.reason`
+ *
+ * @public
+ */
+export const TLSyncErrorCloseEventCode = 4099 as const
+
+/**
+ * The set of reasons that a connection can be closed by the server
+ * @public
+ */
+export const TLSyncErrorCloseEventReason = {
+	NOT_FOUND: 'NOT_FOUND',
+	FORBIDDEN: 'FORBIDDEN',
+	NOT_AUTHENTICATED: 'NOT_AUTHENTICATED',
+	UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+} as const
+/**
+ * The set of reasons that a connection can be closed by the server
+ * @public
+ */
+export type TLSyncErrorCloseEventReason =
+	(typeof TLSyncErrorCloseEventReason)[keyof typeof TLSyncErrorCloseEventReason]
+
+/**
  * @internal
  */
-export const TLCloseEventCode = {
-	NOT_FOUND: 4099,
-	FORBIDDEN: 4100,
-} as const
+export type TlSocketStatusChangeEvent =
+	| {
+			status: 'online' | 'offline'
+	  }
+	| {
+			status: 'error'
+			reason: string
+	  }
+/** @internal */
+export type TLSocketStatusListener = (params: TlSocketStatusChangeEvent) => void
 
 /** @internal */
 export type TLPersistentClientSocketStatus = 'online' | 'offline' | 'error'
@@ -52,7 +88,7 @@ export interface TLPersistentClientSocket<R extends UnknownRecord = UnknownRecor
 	/** Attach a listener for messages sent by the server */
 	onReceiveMessage: SubscribingFn<TLSocketServerSentEvent<R>>
 	/** Attach a listener for connection status changes */
-	onStatusChange: SubscribingFn<TLPersistentClientSocketStatus>
+	onStatusChange: SubscribingFn<TlSocketStatusChangeEvent>
 	/** Restart the connection */
 	restart(): void
 }
@@ -115,7 +151,10 @@ export class TLSyncClient<R extends UnknownRecord, S extends Store<R> = Store<R>
 	 * Called immediately after a connect acceptance has been received and processed Use this to make
 	 * any changes to the store that are required to keep it operational
 	 */
-	public readonly onAfterConnect?: (self: TLSyncClient<R, S>, isNew: boolean) => void
+	public readonly onAfterConnect?: (
+		self: TLSyncClient<R, S>,
+		details: { isReadonly: boolean }
+	) => void
 	public readonly onSyncError: (reason: TLIncompatibilityReason) => void
 
 	private isDebugging = false
@@ -137,7 +176,7 @@ export class TLSyncClient<R extends UnknownRecord, S extends Store<R> = Store<R>
 		onLoad(self: TLSyncClient<R, S>): void
 		onLoadError(error: Error): void
 		onSyncError(reason: TLIncompatibilityReason): void
-		onAfterConnect?(self: TLSyncClient<R, S>, isNew: boolean): void
+		onAfterConnect?(self: TLSyncClient<R, S>, details: { isReadonly: boolean }): void
 		didCancel?(): boolean
 	}) {
 		this.didCancel = config.didCancel
@@ -185,7 +224,7 @@ export class TLSyncClient<R extends UnknownRecord, S extends Store<R> = Store<R>
 				}
 			}),
 			// handle switching between online and offline
-			this.socket.onStatusChange((status) => {
+			this.socket.onStatusChange(({ status }) => {
 				if (this.didCancel?.()) return this.close()
 				this.debug('socket status changed', status)
 				if (status === 'online') {
@@ -363,8 +402,7 @@ export class TLSyncClient<R extends UnknownRecord, S extends Store<R> = Store<R>
 			// this.store.applyDiff(stashedChanges, false)
 
 			this.store.ensureStoreIsUsable()
-			// TODO: reinstate isNew
-			this.onAfterConnect?.(this, false)
+			this.onAfterConnect?.(this, { isReadonly: event.isReadonly })
 		})
 
 		this.lastServerClock = event.serverClock

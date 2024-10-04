@@ -1,5 +1,8 @@
-import { TLIncompatibilityReason, TLRemoteSyncError } from '@tldraw/sync-core'
-import { exhaustiveSwitchError } from 'tldraw'
+import {
+	TLIncompatibilityReason,
+	TLRemoteSyncError,
+	TLSyncErrorCloseEventReason,
+} from '@tldraw/sync-core'
 import { ErrorPage } from './ErrorPage/ErrorPage'
 
 export function StoreErrorScreen({ error }: { error: Error }) {
@@ -42,18 +45,20 @@ export function StoreErrorScreen({ error }: { error: Error }) {
 					'Your changes were rejected by the server. Please reload the page. If the problem persists contact the system administrator.'
 				break
 			}
-			case TLIncompatibilityReason.RoomNotFound: {
+			case TLSyncErrorCloseEventReason.NOT_FOUND: {
 				header = 'Room not found'
 				message = 'The room you are trying to connect to does not exist.'
 				break
 			}
-			case TLIncompatibilityReason.Forbidden: {
+			case TLSyncErrorCloseEventReason.NOT_AUTHENTICATED:
+			case TLSyncErrorCloseEventReason.FORBIDDEN: {
 				header = 'Unauthorized'
 				message = 'You need to be authorized to view this room.'
 				break
 			}
-			default:
-				exhaustiveSwitchError(error.reason)
+			default: {
+				console.error('Unhandled sync error', error)
+			}
 		}
 	}
 

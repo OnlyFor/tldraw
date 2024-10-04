@@ -31,6 +31,7 @@ import {
 	SESSION_START_WAIT_TIME,
 } from './RoomSession'
 import { TLSyncLog } from './TLSocketRoom'
+import { TLSyncErrorCloseEventCode } from './TLSyncClient'
 import {
 	NetworkDiff,
 	ObjectDiff,
@@ -53,7 +54,7 @@ import {
 export interface TLRoomSocket<R extends UnknownRecord> {
 	isOpen: boolean
 	sendMessage(msg: TLSocketServerSentEvent<R>): void
-	close(): void
+	close(code?: number, reason?: string): void
 }
 
 // the max number of tombstones to keep in the store
@@ -480,7 +481,8 @@ export class TLSyncRoom<R extends UnknownRecord, SessionMeta> {
 		}
 	}
 
-	private removeSession(sessionId: string) {
+	/** @internal */
+	removeSession(sessionId: string, fatalReason?: string) {
 		const session = this.sessions.get(sessionId)
 		if (!session) {
 			this.log?.warn?.('Tried to remove unknown session')
@@ -493,7 +495,11 @@ export class TLSyncRoom<R extends UnknownRecord, SessionMeta> {
 
 		try {
 			if (session.socket.isOpen) {
-				session.socket.close()
+				if (fatalReason) {
+					session.socket.close(TLSyncErrorCloseEventCode, fatalReason)
+				} else {
+					session.socket.close()
+				}
 			}
 		} catch (_e) {
 			// noop
@@ -779,6 +785,7 @@ export class TLSyncRoom<R extends UnknownRecord, SessionMeta> {
 					schema: this.schema.serialize(),
 					serverClock: this.clock,
 					diff: migrated.value,
+					isReadonly: session.isReadonly,
 				})
 			} else {
 				// calculate the changes since the time the client last saw
@@ -827,6 +834,7 @@ export class TLSyncRoom<R extends UnknownRecord, SessionMeta> {
 					protocolVersion: getTlsyncProtocolVersion(),
 					serverClock: this.clock,
 					diff: migrated.value,
+					isReadonly: session.isReadonly,
 				})
 			}
 		})

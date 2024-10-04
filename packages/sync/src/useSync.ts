@@ -1,12 +1,10 @@
-import { isSignal } from '@tldraw/state'
+import { atom, isSignal } from '@tldraw/state'
 import { useAtom } from '@tldraw/state-react'
 import {
 	ClientWebSocketAdapter,
-	TLCloseEventCode,
-	TLIncompatibilityReason,
-	TLPersistentClientSocketStatus,
 	TLRemoteSyncError,
 	TLSyncClient,
+	TLSyncErrorCloseEventReason,
 } from '@tldraw/sync-core'
 import { useEffect } from 'react'
 import {
@@ -129,19 +127,28 @@ export function useSync(opts: UseSyncOptions & TLStoreSchemaOptions): RemoteTLSt
 			return withParams.toString()
 		})
 
-		socket.onStatusChange((val: TLPersistentClientSocketStatus, closeCode?: number) => {
-			if (val === 'error' && closeCode === TLCloseEventCode.NOT_FOUND) {
-				track?.(MULTIPLAYER_EVENT_NAME, { name: 'room-not-found', roomId })
-				setState({ error: new TLRemoteSyncError(TLIncompatibilityReason.RoomNotFound) })
-				client.close()
-				socket.close()
-				return
-			} else if (val === 'error' && closeCode === TLCloseEventCode.FORBIDDEN) {
-				track?.(MULTIPLAYER_EVENT_NAME, { name: 'not-authorized', roomId })
-				setState({ error: new TLRemoteSyncError(TLIncompatibilityReason.Forbidden) })
-				client.close()
-				socket.close()
+		// handle non-recoverable errors
+		socket.onStatusChange((ev) => {
+			if (ev.status !== 'error') return
+
+			switch (ev.reason) {
+				case TLSyncErrorCloseEventReason.NOT_FOUND:
+					track?.(MULTIPLAYER_EVENT_NAME, { name: 'room-not-found', roomId })
+					break
+				case TLSyncErrorCloseEventReason.FORBIDDEN:
+					track?.(MULTIPLAYER_EVENT_NAME, { name: 'not-authorized', roomId })
+					break
+				case TLSyncErrorCloseEventReason.NOT_AUTHENTICATED:
+					track?.(MULTIPLAYER_EVENT_NAME, { name: 'not-authenticated', roomId })
+					break
+				default:
+					track?.(MULTIPLAYER_EVENT_NAME, { name: 'sync-error:' + ev.reason, roomId })
+					break
 			}
+
+			setState({ error: new TLRemoteSyncError(ev.reason) })
+			client.close()
+			socket.close()
 		})
 
 		let didCancel = false
@@ -150,6 +157,8 @@ export function useSync(opts: UseSyncOptions & TLStoreSchemaOptions): RemoteTLSt
 			socket.connectionStatus === 'error' ? 'offline' : socket.connectionStatus
 		)
 
+		const syncMode = atom('sync mode', 'readwrite' as 'readonly' | 'readwrite')
+
 		const store = createTLStore({
 			id: storeId,
 			schema,
@@ -157,6 +166,7 @@ export function useSync(opts: UseSyncOptions & TLStoreSchemaOptions): RemoteTLSt
 			onMount,
 			collaboration: {
 				status: collaborationStatusSignal,
+				mode: syncMode,
 			},
 		})
 
@@ -177,13 +187,14 @@ export function useSync(opts: UseSyncOptions & TLStoreSchemaOptions): RemoteTLSt
 				track?.(MULTIPLAYER_EVENT_NAME, { name: 'sync-error', roomId, reason })
 				setState({ error: new TLRemoteSyncError(reason) })
 			},
-			onAfterConnect() {
+			onAfterConnect(_, { isReadonly }) {
 				// if the server crashes and loses all data it can return an empty document
 				// when it comes back up. This is a safety check to make sure that if something like
 				// that happens, it won't render the app broken and require a restart. The user will
 				// most likely lose all their changes though since they'll have been working with pages
 				// that won't exist. There's certainly something we can do to make this better.
 				// but the likelihood of this happening is very low and maybe not worth caring about beyond this.
+				syncMode.set(isReadonly ? 'readonly' : 'readwrite')
 				store.ensureStoreIsUsable()
 			},
 			presence: createPresenceStateDerivation(userPreferences)(store),

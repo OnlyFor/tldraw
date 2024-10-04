@@ -717,6 +717,16 @@ export class Editor extends EventEmitter<TLEventMap> {
 			{ history: 'ignore' }
 		)
 
+		if (this.store.props.collaboration?.mode) {
+			this.disposables.add(
+				react('set readonly from sync', () => {
+					this.updateInstanceState({
+						isReadonly: this.store.props.collaboration!.mode!.get() === 'readonly',
+					})
+				})
+			)
+		}
+
 		if (initialState && this.root.children[initialState] === undefined) {
 			throw Error(`No state found for initialState "${initialState}".`)
 		}
