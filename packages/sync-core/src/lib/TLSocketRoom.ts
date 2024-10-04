@@ -195,16 +195,7 @@ export class TLSocketRoom<R extends UnknownRecord = UnknownRecord, SessionMeta =
 			}
 		} catch (e) {
 			this.log?.error?.(e)
-			const socket = this.sessions.get(sessionId)?.socket
-			if (socket) {
-				socket.send(
-					JSON.stringify({
-						type: 'error',
-						error: typeof e?.toString === 'function' ? e.toString() : e,
-					} satisfies TLSocketServerSentEvent<R>)
-				)
-				socket.close()
-			}
+			this.room.rejectSession(sessionId, TLSyncErrorCloseEventReason.UNKNOWN_ERROR)
 		}
 	}
 

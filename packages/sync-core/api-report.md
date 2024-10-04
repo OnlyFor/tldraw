@@ -155,6 +155,7 @@ export type RoomSession<R extends UnknownRecord, Meta> = {
     isReadonly: boolean;
     meta: Meta;
     presenceId: null | string;
+    requiresLegacyRejection: boolean;
     sessionId: string;
     socket: TLRoomSocket<R>;
     state: typeof RoomSessionState.AwaitingRemoval;
@@ -165,6 +166,7 @@ export type RoomSession<R extends UnknownRecord, Meta> = {
     meta: Meta;
     outstandingDataMessages: TLSocketServerSentDataEvent<R>[];
     presenceId: null | string;
+    requiresLegacyRejection: boolean;
     serializedSchema: SerializedSchema;
     sessionId: string;
     socket: TLRoomSocket<R>;
@@ -173,6 +175,7 @@ export type RoomSession<R extends UnknownRecord, Meta> = {
     isReadonly: boolean;
     meta: Meta;
     presenceId: null | string;
+    requiresLegacyRejection: boolean;
     sessionId: string;
     sessionStartTime: number;
     socket: TLRoomSocket<R>;
@@ -233,15 +236,14 @@ export interface TLConnectRequest {
     type: 'connect';
 }
 
-// @internal (undocumented)
+// @internal @deprecated (undocumented)
 export const TLIncompatibilityReason: {
     readonly ClientTooOld: "clientTooOld";
-    readonly InvalidOperation: "invalidOperation";
     readonly InvalidRecord: "invalidRecord";
     readonly ServerTooOld: "serverTooOld";
 };
 
-// @internal (undocumented)
+// @internal @deprecated (undocumented)
 export type TLIncompatibilityReason = (typeof TLIncompatibilityReason)[keyof typeof TLIncompatibilityReason];
 
 // @internal
@@ -405,9 +407,6 @@ export type TLSocketServerSentEvent<R extends UnknownRecord> = {
     data: TLSocketServerSentDataEvent<R>[];
     type: 'data';
 } | {
-    error?: any;
-    type: 'error';
-} | {
     reason: TLIncompatibilityReason;
     type: 'incompatibility_error';
 } | {
@@ -433,8 +432,7 @@ export class TLSyncClient<R extends UnknownRecord, S extends Store<R> = Store<R>
             isReadonly: boolean;
         }): void;
         onLoad(self: TLSyncClient<R, S>): void;
-        onLoadError(error: Error): void;
-        onSyncError(reason: TLIncompatibilityReason): void;
+        onSyncError(reason: string): void;
         presence: Signal<null | R>;
         socket: TLPersistentClientSocket<R>;
         store: S;
@@ -455,8 +453,6 @@ export class TLSyncClient<R extends UnknownRecord, S extends Store<R> = Store<R>
         isReadonly: boolean;
     }) => void;
     // (undocumented)
-    readonly onSyncError: (reason: TLIncompatibilityReason) => void;
-    // (undocumented)
     readonly presenceState: Signal<null | R> | undefined;
     // (undocumented)
     readonly socket: TLPersistentClientSocket<R>;
@@ -469,9 +465,12 @@ export const TLSyncErrorCloseEventCode: 4099;
 
 // @public
 export const TLSyncErrorCloseEventReason: {
+    readonly CLIENT_TOO_OLD: "CLIENT_TOO_OLD";
     readonly FORBIDDEN: "FORBIDDEN";
+    readonly INVALID_RECORD: "INVALID_RECORD";
     readonly NOT_AUTHENTICATED: "NOT_AUTHENTICATED";
     readonly NOT_FOUND: "NOT_FOUND";
+    readonly SERVER_TOO_OLD: "SERVER_TOO_OLD";
     readonly UNKNOWN_ERROR: "UNKNOWN_ERROR";
 };
 
@@ -532,6 +531,7 @@ export class TLSyncRoom<R extends UnknownRecord, SessionMeta> {
     readonly presenceType: null | RecordType<R, any>;
     // (undocumented)
     pruneSessions: () => void;
+    rejectSession(sessionId: string, reason: TLSyncErrorCloseEventReason): void;
     // (undocumented)
     removeSession(sessionId: string, fatalReason?: string): void;
     // (undocumented)

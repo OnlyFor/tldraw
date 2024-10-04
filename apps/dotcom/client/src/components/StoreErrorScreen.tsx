@@ -1,8 +1,4 @@
-import {
-	TLIncompatibilityReason,
-	TLRemoteSyncError,
-	TLSyncErrorCloseEventReason,
-} from '@tldraw/sync-core'
+import { TLRemoteSyncError, TLSyncErrorCloseEventReason } from '@tldraw/sync-core'
 import { ErrorPage } from './ErrorPage/ErrorPage'
 
 export function StoreErrorScreen({ error }: { error: Error }) {
@@ -10,7 +6,7 @@ export function StoreErrorScreen({ error }: { error: Error }) {
 	let message = ''
 	if (error instanceof TLRemoteSyncError) {
 		switch (error.reason) {
-			case TLIncompatibilityReason.ClientTooOld: {
+			case TLSyncErrorCloseEventReason.CLIENT_TOO_OLD: {
 				return (
 					<ErrorPage
 						icon={
@@ -30,17 +26,12 @@ export function StoreErrorScreen({ error }: { error: Error }) {
 					/>
 				)
 			}
-			case TLIncompatibilityReason.ServerTooOld: {
+			case TLSyncErrorCloseEventReason.SERVER_TOO_OLD: {
 				message =
 					'The multiplayer server is out of date. Please reload the page. If the problem persists contact the system administrator.'
 				break
 			}
-			case TLIncompatibilityReason.InvalidRecord: {
-				message =
-					'Your changes were rejected by the server. Please reload the page. If the problem persists contact the system administrator.'
-				break
-			}
-			case TLIncompatibilityReason.InvalidOperation: {
+			case TLSyncErrorCloseEventReason.INVALID_RECORD: {
 				message =
 					'Your changes were rejected by the server. Please reload the page. If the problem persists contact the system administrator.'
 				break

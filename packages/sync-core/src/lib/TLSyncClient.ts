@@ -12,7 +12,6 @@ import isEqual from 'lodash.isequal'
 import { NetworkDiff, RecordOpType, applyObjectDiff, diffRecord, getNetworkDiff } from './diff'
 import { interval } from './interval'
 import {
-	TLIncompatibilityReason,
 	TLPushRequest,
 	TLSocketClientSentEvent,
 	TLSocketServerSentDataEvent,
@@ -49,6 +48,9 @@ export const TLSyncErrorCloseEventReason = {
 	FORBIDDEN: 'FORBIDDEN',
 	NOT_AUTHENTICATED: 'NOT_AUTHENTICATED',
 	UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+	CLIENT_TOO_OLD: 'CLIENT_TOO_OLD',
+	SERVER_TOO_OLD: 'SERVER_TOO_OLD',
+	INVALID_RECORD: 'INVALID_RECORD',
 } as const
 /**
  * The set of reasons that a connection can be closed by the server
@@ -155,7 +157,6 @@ export class TLSyncClient<R extends UnknownRecord, S extends Store<R> = Store<R>
 		self: TLSyncClient<R, S>,
 		details: { isReadonly: boolean }
 	) => void
-	public readonly onSyncError: (reason: TLIncompatibilityReason) => void
 
 	private isDebugging = false
 	private debug(...args: any[]) {
@@ -174,8 +175,7 @@ export class TLSyncClient<R extends UnknownRecord, S extends Store<R> = Store<R>
 		socket: TLPersistentClientSocket<R>
 		presence: Signal<R | null>
 		onLoad(self: TLSyncClient<R, S>): void
-		onLoadError(error: Error): void
-		onSyncError(reason: TLIncompatibilityReason): void
+		onSyncError(reason: string): void
 		onAfterConnect?(self: TLSyncClient<R, S>, details: { isReadonly: boolean }): void
 		didCancel?(): boolean
 	}) {
@@ -189,7 +189,6 @@ export class TLSyncClient<R extends UnknownRecord, S extends Store<R> = Store<R>
 		this.store = config.store
 		this.socket = config.socket
 		this.onAfterConnect = config.onAfterConnect
-		this.onSyncError = config.onSyncError
 
 		let didLoad = false
 
@@ -216,27 +215,21 @@ export class TLSyncClient<R extends UnknownRecord, S extends Store<R> = Store<R>
 				// one of the load callbacks
 				if (!didLoad) {
 					didLoad = true
-					if (msg.type === 'error') {
-						config.onLoadError(msg.error)
-					} else {
-						config.onLoad(this)
-					}
+					config.onLoad(this)
 				}
 			}),
 			// handle switching between online and offline
-			this.socket.onStatusChange(({ status }) => {
+			this.socket.onStatusChange((ev) => {
 				if (this.didCancel?.()) return this.close()
-				this.debug('socket status changed', status)
-				if (status === 'online') {
+				this.debug('socket status changed', ev.status)
+				if (ev.status === 'online') {
 					this.sendConnectMessage()
 				} else {
 					this.resetConnection()
-					// if we reached here before connecting to the server
-					// it's a socket error, mostly likely the server is down or
-					// it's the wrong url.
-					if (status === 'error' && !didLoad) {
+					if (ev.status === 'error') {
 						didLoad = true
-						config.onLoadError(new Error('socket error'))
+						config.onSyncError(ev.reason)
+						this.close()
 					}
 				}
 			}),
@@ -419,11 +412,6 @@ export class TLSyncClient<R extends UnknownRecord, S extends Store<R> = Store<R>
 			case 'connect':
 				this.didReconnect(event)
 				break
-			case 'error':
-				console.error('Server error', event.error)
-				console.error('Restarting socket')
-				this.socket.restart()
-				break
 			// legacy v4 events
 			case 'patch':
 			case 'push_result':
@@ -438,7 +426,8 @@ export class TLSyncClient<R extends UnknownRecord, S extends Store<R> = Store<R>
 				this.scheduleRebase()
 				break
 			case 'incompatibility_error':
-				this.onSyncError(event.reason)
+				// legacy unrecoverable errors
+				console.error('incompatibility error is legacy and should no longer be sent by the server')
 				break
 			case 'pong':
 				// noop, we only use ping/pong to set lastSeverInteractionTimestamp
